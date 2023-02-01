@@ -1,3 +1,3 @@
 locals {
-  project_name = "pythonlambdatemplate"
+  project_name = "bonds"
 }

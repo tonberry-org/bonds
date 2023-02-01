@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "pythonlambdatemplate"
+name = "bonds"
 version = "0.1.0"
 description = ""
 authors = ["Matthew Tondreau <mmtondreau@gmail.com>"]

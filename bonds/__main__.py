@@ -1,9 +1,9 @@
-import pythonlambdatemplate.child_lambda_function
+import bonds.child_lambda_function
 import json
 
 
 def main(argv: list[str]) -> None:
-    pythonlambdatemplate.child_lambda_function.lambda_handler(
+    bonds.child_lambda_function.lambda_handler(
         {
             "Records": [
                 {

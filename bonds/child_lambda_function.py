@@ -3,7 +3,7 @@ from typing import Any, Mapping
 from slack_bot_client.slack_client import SlackClient, SlackChannel
 import boto3
 import logging
-import pythonlambdatemplate.config as config
+import bonds.config as config
 import newrelic
 import json
 from datetime import date
