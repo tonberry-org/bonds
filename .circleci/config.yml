@@ -1,0 +1,96 @@
+version: 2.1
+orbs:
+  python: circleci/python@1.0.0
+  aws-s3: circleci/aws-s3@3.0.0
+only_main_filter: &only_main_filter
+  branches:
+    only:
+      - main
+only_not_main_filter: &only_not_main_filter
+  branches:
+    ignore:
+      - main
+
+attach: &attach_defaults
+  attach_workspace:
+    at: ~/project
+
+python_default: &python_default_image
+  image: cimg/python:3.9.16
+
+jobs:
+  build:
+    docker:
+      - *python_default_image
+    steps:
+      - checkout
+      - run:
+          name: install dependencies
+          command: poetry config virtualenvs.in-project true && poetry install -qn
+      - persist_to_workspace:
+          root: ~/project/
+          paths:
+            - .venv/
+  lint:
+    docker:
+      - *python_default_image
+    steps:
+      - checkout
+      - *attach_defaults
+      - run:
+          name: "black"
+          command: poetry run black --check .
+      - run:
+          name: "flake8"
+          command: poetry run flake8 .
+      - run:
+          name: "mypy"
+          command: poetry run mypy .
+  test:
+    docker:
+      - *python_default_image
+    steps:
+      - checkout
+      - *attach_defaults
+      - run:
+          name: pytest
+          command: poetry run coverage run -m pytest
+      - run:
+          name: coverage
+          command: poetry run coverage report
+  package:
+    docker:
+      - *python_default_image
+    steps:
+      - checkout
+      - *attach_defaults
+      - run:
+          name: package
+          command: make clean package
+      - persist_to_workspace:
+          root: ~/project/
+          paths:
+            - dist/
+  deploy:
+    docker:
+      - *python_default_image
+    steps:
+      - *attach_defaults
+      - aws-s3/copy:
+          from: ~/project//dist/$CIRCLE_PROJECT_REPONAME.zip
+          to: "s3://tonberry-lambda-bucket"
+      - aws-s3/copy:
+          from: ~/project//dist/$CIRCLE_PROJECT_REPONAME_coordinator.zip
+          to: "s3://tonberry-lambda-bucket"
+workflows:
+  main:
+    jobs:
+      - build
+      - package:
+          requires:
+            - build
+      - deploy:
+          context: aws-management
+          requires:
+            - package
+          filters: *only_main_filter

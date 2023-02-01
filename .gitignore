@@ -1,0 +1,10 @@
+dist
+.coverage
+*.swp
+.venv
+config.json
+__pycache__
+*.local.ini
+.terraform
+local.env.sh
+local.env.ps1
