@@ -8,8 +8,8 @@ help:
 	@echo "gen - generates response models"
 	@echo "deploy - deploys to lambda deploy s3 bucket"
 
-ZIP_FILE = macro_indicators.zip
-ZIP_FILE_2 = macro_indicators_coordinator.zip
+ZIP_FILE = bonds.zip
+ZIP_FILE_2 = bonds_coordinator.zip
 WHEEL_FILE = realpath ./dist/*.whl
 
 .PHONY: clean

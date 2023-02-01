@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Mapping
+from typing import Any, Mapping, Union
 from slack_bot_client.slack_client import SlackClient, SlackChannel
 import boto3
 import logging
@@ -30,21 +30,27 @@ session.mount("http://", adapter)
 
 @dataclass
 class LambdaParameters:
-    indicator: str
-    date_from: date
-    date_to: date
+    bond: str
+    from_date: date
+    to_date: date
 
 
 def fetch_lambda_parameters(event: Mapping[str, Any]) -> LambdaParameters:
     body = json.loads(event["Records"][0]["body"])
     result = LambdaParameters(
-        indicator=body["indicator"],
-        date_from=date.fromisoformat(body["date_from"]),
-        date_to=date.fromisoformat(body["date_to"]),
+        bond=body["bond"],
+        from_date=date.fromisoformat(body["from_date"]),
+        to_date=date.fromisoformat(body["to_date"]),
     )
 
-    newrelic.agent.add_custom_parameter("indicator", result.indicator)
+    newrelic.agent.add_custom_parameter("bond", result.bond)
+    newrelic.agent.add_custom_parameter("from_date", result.from_date.isoformat())
+    newrelic.agent.add_custom_parameter("to_date", result.to_date.isoformat())
     return result
+
+
+def decimalize(val: Union[str, float]) -> Decimal:
+    return Decimal(val).quantize(Decimal("1.001"))
 
 
 @newrelic.agent.function_trace()  # type: ignore
@@ -57,31 +63,33 @@ def lambda_handler(event: Mapping[str, Any], context: Mapping[str, Any]) -> str:
         query_params = urlencode(
             {
                 "api_token": api_token,
-                "indicator": parameters.indicator,
-                "to": parameters.date_to,
-                "from": parameters.date_from,
+                "to": parameters.to_date,
+                "from": parameters.from_date,
+                "fmt": "json",
             }
         )
         response = session.get(
-            f"https://eodhistoricaldata.com/api/macro-indicator/USA?{query_params}"
+            f"https://eodhistoricaldata.com/api/eod/{parameters.bond}?{query_params}"
         ).json()
 
         ddb_table = boto3.resource("dynamodb").Table(config.get_ddb_table())
         with ddb_table.batch_writer() as batch:
             for record in response:
                 item = {
-                    "country_code": record["CountryCode"],
-                    "country_name": record["CountryName"],
-                    "indicator": parameters.indicator,
-                    "date": record["Date"],
-                    "period": record["Period"],
-                    "value": Decimal(record["Value"]).quantize(Decimal("0.0001")),
-                    "description": record["Indicator"],
+                    "bond": parameters.bond,
+                    "date": record["date"],
+                    "open": decimalize(record["open"]),
+                    "high": decimalize(record["high"]),
+                    "low": decimalize(record["low"]),
+                    "close": decimalize(record["close"]),
+                    "adjusted_close": decimalize(record["adjusted_close"]),
+                    "volume": int(record["volume"]),
                 }
                 batch.put_item(Item=item)
     except Exception as e:
-        logger.error(f"Error processing {parameters.indicator}: {e}")
+        logger.error(f"Error processing {parameters.bond}: {e}")
         newrelic.agent.record_custom_event("error", e)
+        raise e
 
     SlackClient().send(SlackChannel.MONITORING, "OK")
     return "OK"

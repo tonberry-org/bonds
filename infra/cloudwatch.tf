@@ -1,6 +1,6 @@
 resource "aws_cloudwatch_event_rule" "evnet_rule" {
   name                = local.project_name
-  schedule_expression = "cron(0/5 13-23 ? * MON-FRI *)"
+  schedule_expression = "cron(0 0 ? * * *)"
 }
 
 

@@ -27,5 +27,9 @@ def get_ddb_table() -> str:
     return get_or_throw("DDB_TABLE")
 
 
+def get_ddb_constituents_table() -> str:
+    return get_or_throw("CONSTITUENTS_DDB_TABLE")
+
+
 def get_queue_name() -> str:
     return get_or_throw("QUEUE_NAME")
