@@ -20,24 +20,10 @@ def lambda_handler(event: Mapping[str, Any], context: Mapping[str, Any]) -> str:
     config_ddb_table = boto3.resource("dynamodb").Table(config.get_config_ddb_table())
     configs = config_ddb_table.scan()["Items"]
 
-    previous_run_log = rl_client.find_last("bonds", RunLogStatus.COMPLETED)
-    from_date = (
-        previous_run_log.start_datetime().date()
-        if previous_run_log is not None
-        else date.fromisoformat("2010-01-01")
-    )
-    newrelic.agent.add_custom_parameter("last_run", from_date.isoformat())
-
-    to_date = date.today()
-
     sqs = boto3.resource("sqs")
     queue = sqs.get_queue_by_name(QueueName=config.get_queue_name())
     for config_entry in configs:
-        payload = {
-            "bond": config_entry["bond"],
-            "to_date": to_date.isoformat(),
-            "from_date": from_date.isoformat(),
-        }
+        payload = {"bond": config_entry["bond"]}
         queue.send_message(MessageBody=json.dumps(payload))
 
     run_log.status = RunLogStatus.COMPLETED
