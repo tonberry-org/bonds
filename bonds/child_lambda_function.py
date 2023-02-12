@@ -6,7 +6,7 @@ import logging
 import bonds.config as config
 import newrelic
 import json
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -14,6 +14,7 @@ from urllib.parse import urlencode
 from common.ssm import SSM
 from decimal import Decimal
 from run_log.client import Client as RLClient, RunLogStatus, RunLog
+import uuid
 
 logging.basicConfig(
     level=config.get_logging_level(), format="%(asctime)s %(levelname)s %(message)s"
@@ -49,30 +50,40 @@ def decimalize(val: Union[str, float]) -> Decimal:
 PROCESS_TYPE = "bonds"
 
 
+def filter_by_date(from_date: date, to_date: date, input_date_str: str) -> bool:
+    input_date = date.fromisoformat(input_date_str)
+    return input_date > from_date and input_date <= to_date
+
+
 @newrelic.agent.function_trace()  # type: ignore
 def determine_from_date(last_run: RunLog) -> date:
     if (
         last_run is not None
         and last_run.parameters is not None
-        and "to_date" in last_run.parameters
+        and "last" in last_run.parameters
     ):
-        result = last_run.parameters["to_date"]
+        result = date.fromisoformat(last_run.parameters["last"])
     else:
-        result = "2016-01-01"
+        result = date(2016, 1, 1)
     newrelic.agent.add_custom_parameter("from_date", result)
     return result
 
 
 @newrelic.agent.function_trace()  # type: ignore
 def lambda_handler(event: Mapping[str, Any], context: Mapping[str, Any]) -> str:
+    s3 = boto3.resource("s3")
     parameters = fetch_lambda_parameters(event)
-    to_date = date.today().isoformat()
+    to_date = datetime.now(timezone.utc).date()
     try:
         rl_client = RLClient()
         last_run = rl_client.find_last(f"{PROCESS_TYPE}:{parameters.bond}")
         from_date = determine_from_date(last_run)
         run_log = rl_client.start_run(
-            PROCESS_TYPE, parameters={"to_date": to_date, "from_date": from_date}
+            PROCESS_TYPE,
+            parameters={
+                "to_date": to_date.isoformat(),
+                "from_date": from_date.isoformat(),
+            },
         )
 
         api_token = SSM().get_parameter("/eod/api_key")
@@ -80,8 +91,8 @@ def lambda_handler(event: Mapping[str, Any], context: Mapping[str, Any]) -> str:
         query_params = urlencode(
             {
                 "api_token": api_token,
-                "to": to_date,
-                "from": from_date,
+                "to": to_date.isoformat(),
+                "from": from_date.isoformat(),
                 "fmt": "json",
             }
         )
@@ -89,20 +100,23 @@ def lambda_handler(event: Mapping[str, Any], context: Mapping[str, Any]) -> str:
             f"https://eodhistoricaldata.com/api/eod/{parameters.bond}?{query_params}"
         ).json()
 
-        ddb_table = boto3.resource("dynamodb").Table(config.get_ddb_table())
-        with ddb_table.batch_writer() as batch:
-            for record in response:
-                item = {
-                    "bond": parameters.bond,
-                    "date": record["date"],
-                    "open": decimalize(record["open"]),
-                    "high": decimalize(record["high"]),
-                    "low": decimalize(record["low"]),
-                    "close": decimalize(record["close"]),
-                    "adjusted_close": decimalize(record["adjusted_close"]),
-                    "volume": int(record["volume"]),
-                }
-                batch.put_item(Item=item)
+        bonds = list(
+            filter(
+                lambda x: filter_by_date(from_date, to_date, x["date"]),
+                response,
+            )
+        )
+
+        if len(response) > 0:
+            max_date = max(
+                list(map(lambda row: row["date"], bonds)) + [from_date.isoformat()]
+            )
+            object = s3.Object(
+                config.get_raw_s3_bucket(),
+                f"{parameters.bond}-{from_date}-{uuid.uuid4()}.json",
+            )
+            object.put(Body=json.dumps(bonds))
+            run_log.parameters["last"] = max_date
         run_log.status = RunLogStatus.COMPLETED
         rl_client.update_run_log(run_log=run_log)
     except Exception as e:

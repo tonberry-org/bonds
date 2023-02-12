@@ -10,9 +10,7 @@ def call_bonds() -> None:
                 {
                     "body": json.dumps(
                         {
-                            "from_date": "2010-01-01",
-                            "to_date": "2023-02-01",
-                            "period": "10Y",
+                            "bond": "US10Y.GBOND",
                         }
                     )
                 }

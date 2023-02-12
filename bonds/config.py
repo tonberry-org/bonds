@@ -23,8 +23,8 @@ def get_config_ddb_table() -> str:
     return get_or_throw("CONFIG_DDB_TABLE")
 
 
-def get_ddb_table() -> str:
-    return get_or_throw("DDB_TABLE")
+def get_raw_s3_bucket() -> str:
+    return get_or_throw("RAW_S3_BUCKET")
 
 
 def get_ddb_constituents_table() -> str:

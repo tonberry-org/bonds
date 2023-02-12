@@ -37,8 +37,7 @@ resource "aws_lambda_function" "child" {
 
   environment {
     variables = {
-      DDB_TABLE : aws_dynamodb_table.primary.name
-      CLIENT_ID : data.aws_ssm_parameter.client_id.value
+      RAW_S3_BUCKET : aws_s3_bucket.raw.id
       # For the instrumentation handler to invoke your real handler, we need this value
       NEW_RELIC_LAMBDA_HANDLER = "${local.project_name}.child_lambda_function.lambda_handler"
       NEW_RELIC_ACCOUNT_ID     = data.aws_ssm_parameter.newrelic_account_id.value
