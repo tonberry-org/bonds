@@ -80,7 +80,7 @@ jobs:
           from: ~/project//dist/$CIRCLE_PROJECT_REPONAME.zip
           to: "s3://tonberry-lambda-bucket"
       - aws-s3/copy:
-          from: ~/project//dist/$CIRCLE_PROJECT_REPONAME_coordinator.zip
+          from: ~/project//dist/${CIRCLE_PROJECT_REPONAME}_coordinator.zip
           to: "s3://tonberry-lambda-bucket"
 workflows:
   main:
