@@ -79,7 +79,7 @@ def lambda_handler(event: Mapping[str, Any], context: Mapping[str, Any]) -> str:
         last_run = rl_client.find_last(f"{PROCESS_TYPE}:{parameters.bond}")
         from_date = determine_from_date(last_run)
         run_log = rl_client.start_run(
-            PROCESS_TYPE,
+            f"{PROCESS_TYPE}:{parameters.bond}",
             parameters={
                 "to_date": to_date.isoformat(),
                 "from_date": from_date.isoformat(),
