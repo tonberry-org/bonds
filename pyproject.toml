@@ -17,6 +17,7 @@ slack_bot_client = { git = "git@github.com:tonberry-org/slack_bot_client.git", b
 slack-sdk = "^3.19.5"
 common = { git = "git@github.com:tonberry-org/common.git", branch = "main" }
 run_log = { git = "git@github.com:tonberry-org/run_log.git", branch = "main" }
+types-boto3 = "^1.0.2"
 
 [tool.poetry.group.dev.dependencies]
 flake8 = "^6.0.0"

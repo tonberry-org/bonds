@@ -6,7 +6,7 @@ import logging
 import bonds.config as config
 import newrelic
 import json
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timezone
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -107,10 +107,12 @@ def lambda_handler(event: Mapping[str, Any], context: Mapping[str, Any]) -> str:
             )
         )
 
-        if len(response) > 0:
+        if len(bonds) > 0:
             max_date = max(
                 list(map(lambda row: row["date"], bonds)) + [from_date.isoformat()]
             )
+            for row in bonds:
+                row["bond"] = parameters.bond
             object = s3.Object(
                 config.get_raw_s3_bucket(),
                 f"{parameters.bond}-{from_date}-{uuid.uuid4()}.json",
