@@ -24,7 +24,7 @@ build:
 package: build
 	pip install $(WHEEL_FILE) -t dist && \
 	rm -f $(WHEEL_FILE) && \
-	cd dist && zip $(ZIP_FILE) * -r -x '*.pyc'\
+	cd dist && zip $(ZIP_FILE) * -r -x '*.pyc' &&\
 	cp ${ZIP_FILE} ${ZIP_FILE_2}
 
 .PHONY: deploy
